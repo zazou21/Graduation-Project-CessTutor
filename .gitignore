@@ -1,0 +1,17 @@
+# --- Research papers ---
+# PDFs and notes you downloaded to read
+Papers/
+
+# --- LaTeX build artifacts (anywhere in repo) ---
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
