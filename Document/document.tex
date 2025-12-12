@@ -255,7 +255,7 @@ These metrics collectively help provide a comprehensive understanding of how wel
 A core principle for educational LLMs is guidance over answers. Tutors that simply output solutions whether code, MCQs, or written responses promote overreliance and undermine learning transfer, leading to poorer exam performance. To produce genuine gains, the tutor must embody established pedagogy: Socratic prompting and scaffolding (from hints to partial steps to faded support), formative feedback that targets misconceptions, and explicit alignment with course learning objectives. It should encourage productive struggle (e.g., “why this step?”), calibrate help to the learner’s state, and withhold final answers until key reasoning is demonstrated. In short, pedagogy, not mere correctness, must drive interaction design. Several papers have discussed techniques to improve pedagogy \cite{ross2025_guidelm,scarlatos2025_dialogue_tutor_dpo,song2025_edualign_hpc,feng2024_courseassist,qian2025_dean_llm_tutors,favero2024_socratic_chatbot_arxiv}. This is certainly important for the scope of out university course tutor. Ross et al. \cite{ross2025_guidelm} grounded their model development in established educational theories, specifically constructivism and cognitive load theory. They defined nine key pedagogical properties for evaluating AI tutors, with particular emphasis on Socratic guidance (providing conceptual questions rather than explicit solutions) and economy of words (conveying necessary information concisely to reduce cognitive load).
 Socratic Guidance Implementation:
 The researchers' fine-tuned models (gpt-4 variants)demonstrated significant improvements in Socratic guidance, with increases ranging from 5.5\% to 25.4\% compared to base models. This meant the models were more likely to ask guiding questions like "What do you think happens when the loop counter exceeds the array size?" rather than directly stating "You have an off-by-one error." This approach encourages active learning and helps students develop debugging skills independently.
-Favero et al. \cite{favero2024_socratic_chatbot_arxiv} also leveraged fine tuned models, they used smaller models (Llama-2-7B/13B)  fine-tuned with (Q)LoRA on examples labeled by Socratic category (clarification; probing assumptions; reasons/evidence; implications; alternative viewpoints, etc.). At inference, a role/goal/resources/outcome prompt forces one short Socratic question per turn, suppressing expository answers. The tutor is tested in a dual-agent simulation (Socratic tutor vs simulated learner) across Theory-of-Knowledge problems, with multiple metrics (BLEU/ROUGE/METEOR/BERTScore) and an LLM judge calibrated to critical-thinking quality. The Socratic models significantly outperform “basic” and “random” tutors; 7B performs close to 13B, supporting local/private deployment.
+Favero et al.\cite{favero2024_socratic_chatbot_arxiv} also leveraged fine tuned models, they used smaller models (Llama-2-7B/13B)  fine-tuned with (Q)LoRA on examples labeled by Socratic category (clarification; probing assumptions; reasons/evidence; implications; alternative viewpoints, etc.). At inference, a role/goal/resources/outcome prompt forces one short Socratic question per turn, suppressing expository answers. The tutor is tested in a dual-agent simulation (Socratic tutor vs simulated learner) across Theory-of-Knowledge problems, with multiple metrics (BLEU/ROUGE/METEOR/BERTScore) and an LLM judge calibrated to critical-thinking quality. The Socratic models significantly outperform “basic” and “random” tutors; 7B performs close to 13B, supporting local/private deployment.
 
 In the context of computer engineering and programming education, the goal of a tutor is not just to correct syntax but to address underlying logical and semantic errors, which novice programmers frequently encounter . Traditional LLM feedback can be misleading on these complex errors, sometimes even making the same mistakes as students .
 
@@ -565,8 +565,73 @@ Figure~\ref{fig:system_architecture} presents the overall system architecture.
     \item Model size vs hardware limits
     \item Ease of fine-tuning (LoRA/Q-LoRA support)
     \item Hallucination resistance
-    \item Licensing for academic use
+    \item Cost and deployment feasibility
+    
 \end{itemize}
+
+
+\subsection{Model Size Tradeoffs}
+
+In general, language models exhibit scaling behaviour: as the number of parameters increases, average performance on broad benchmark suites tends to improve,
+and very large models can display emergent abilities that are absent at smaller scales.
+This would suggest that GPT-4-class models should always dominate smaller 7--8B models. However, for a \emph{narrow, course-specific tutoring task},
+the performance gap can be substantially reduced---or even bridged---by combining a small or medium model with task-specific adaptation (fine-tuning)
+and a retrieval-augmented generation (RAG) pipeline over high-quality local materials.
+
+Liu et al.\ (2024) empirically demonstrate this in a CS1 setting: a locally deployed 7B model (neural-chat-7b-v3, a fine-tuned Mistral-7B variant)
+equipped with a RAG layer over course content achieves scores comparable to, and in some evaluation settings slightly higher than,
+GPT-4-32k on real student help-desk conversations, while running on a single consumer GPU and keeping all data on-premise.\cite{liu2024smallrag}
+This supports our design choice: instead of relying exclusively on large, cloud-only models, we can use a small/medium open model that fits our hardware budget and then recover most of the performance through (i) Socratic-style fine-tuning and (ii) RAG grounding on the course’s slides,
+assignments, and exemplar solutions.
+
+
+%-----------------------------------------------------------
+\section{Model Benchmarking Comparison}
+
+To evaluate the suitability of our candidate models, we compare their performance using standard reasoning and knowledge benchmarks frequently used in recent literature.
+ According to the survey \textit{A Survey of Small Language Models} (2024), the core benchmarks include MMLU, HellaSwag, ARC, PIQA, and Winogrande. 
+ These benchmarks assess multi-domain knowledge, commonsense reasoning, scientific reasoning, physical reasoning, and coreference resolution.\cite{wang2024surveySLM}
+
+\subsection{Performance of Small (1--4B), Medium (7B), and Large Models}
+
+Table~\ref{tab:slm_comparison} summarizes key results extracted from Table~8 of the survey (p.~38) and from the efficiency metrics in Table~9 (p.~39). Small models such as Phi-3.5-mini (3.8B) deliver strong performance (e.g., 69.0 MMLU, 81.4 HellaSwag), approaching the lower range of 7B models, while maintaining substantially lower memory and compute requirements. Medium-scale models (7B) consistently achieve higher accuracy (75--78 MMLU), but require 3--10$\times$ more memory (p.~39). Large proprietary models (e.g., GPT-4o, Claude 3.5) achieve state-of-the-art results but are significantly more costly and unsuitable for on-premise deployment.
+
+\subsection{Implications for Model Selection}
+
+The survey notes that small models can match or nearly match large models on \emph{domain-specific tasks} once combined with high-quality training,
+retrieval augmentation, or distillation techniques. 
+For our course-specific tutoring system, this suggests that a 7B or sub-7B open model can achieve competitive pedagogical performance when integrated with Socratic fine-tuning and RAG.
+Medium models offer the best accuracy, while small models provide superior deployment efficiency.
+
+\begin{table}[h!]
+\centering
+\small
+\caption{Comparison of representative small and medium models according to \textit{A Survey of Small Language Models} (2024), based on Table~8 (p.~38) and Table~9 (p.~39).}
+
+
+\setlength{\tabcolsep}{4pt} % tighter columns
+\renewcommand{\arraystretch}{1.1} % slightly compact row height
+\caption{Compact comparison of small and medium models.}
+\label{tab:slm_comparison}
+\begin{tabular}{lcccccc}
+\hline
+\textbf{Model} & \textbf{Params} & \textbf{MMLU} & \textbf{Hella} & \textbf{ARC} & \textbf{Mem (GB)} & \textbf{Tok/s} \\
+\hline
+Phi-3.5-mini & 3.8B & 69.0 & 81.4 & 87.4 & $\sim$12 & 32 \\
+LLaMA~3.2 & 3B & 63.4 & 69.8 & 78.6 & --- & --- \\
+Gemma~2 & 2B & 57.8 & 61.1 & 76.7 & --- & --- \\
+\hline
+Falcon-7B & 7B & 75.9 & 47.5 & 78.5 & 27.8 & 14.9 \\
+LLaMA~2--7B & 7B & 76.8 & 48.5 & 76.7 & 27.8 & 14.9 \\
+MPT-7B & 7B & 77.6 & 46.5 & 77.3 & --- & --- \\
+\hline
+GPT-4o* & --- & $\sim$90 & --- & --- & Cloud & --- \\
+Claude~3.5* & --- & $>90$ & --- & --- & Cloud & --- \\
+\hline
+\end{tabular}
+\end{table}
+
+
 
 \subsection{Final Model Choice}
 (A placeholder for your final decision)
